@@ -1,9 +1,10 @@
-## jxa-builder
+# JXA Builder
 
 JavaScript for automation (JXA) builder with automatic dependencies resolution.
 At the moment you can build a standalone applets and reusable libraries.
 
-**Note**: JXA is Apple's technology, so you can use it only on macOS.
+> [!IMPORTANT]
+> JXA is Apple's technology, so you can use it only on macOS.
 
 ![screenshot](screenshot.png)
 ![screenshot](screenshot2.png)
