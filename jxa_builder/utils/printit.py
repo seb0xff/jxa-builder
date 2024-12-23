@@ -1,4 +1,3 @@
-import rich.text
 from jxa_builder.core.constants import IS_RICH
 from jxa_builder.utils.logger import logger
 if IS_RICH:
@@ -37,5 +36,4 @@ def log_print_error(
   print_error(error_msg, title)
   if IS_RICH:
     error_msg = Text.from_markup(error_msg).plain
-
-  logger.fatal(error_msg, exc_info=incl_traceback)
+  logger.fatal(error_msg, exc_info=incl_traceback, stacklevel=2)
