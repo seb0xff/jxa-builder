@@ -3,7 +3,8 @@ import os
 from os import path as p
 import shutil
 from typing import Optional
-from jxa_builder.utils import terminate_with_error
+from jxa_builder.utils.recase import recase
+from jxa_builder.utils.printit import log_print_error
 
 
 def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
@@ -11,16 +12,13 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
   macos_path = p.join(app_path, 'Contents', 'MacOS')
   info_plist_path = p.join(app_path, 'Contents', 'Info.plist')
 
-  # Make pascal case from space separated, snake or kebab case string
-  bundle_executable = ''.join(
-      word[0].capitalize() + word[1:]
-      for word in re.split(r'[\s_-]+', p.basename(app_path)))
+  bundle_executable = recase(p.basename(app_path), 'pascal')
 
   try:
     with open(info_plist_path, 'r') as file:
       info_plist = file.read()
   except Exception as e:
-    terminate_with_error(f'Error, while reading Info.plist: {e}')
+    log_print_error(f'Cannot read the Info.plist: {e}')
     exit(1)
 
   default_bundle_executable = re.search(
@@ -41,7 +39,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
     with open(info_plist_path, 'w') as f:
       f.write(info_plist)
   except Exception as e:
-    terminate_with_error(f'Error, while writing Info.plist: {e}')
+    log_print_error(f'Cannot write to the Info.plist: {e}')
     exit(1)
 
   ## Rename bundle executable accordingly
@@ -50,7 +48,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
       os.rename(p.join(macos_path, default_bundle_executable),
                 p.join(macos_path, bundle_executable))
   except Exception as e:
-    terminate_with_error(f'Error, while renaming bundle executable: {e}')
+    log_print_error(f'Cannot rename the bundle executable: {e}')
     exit(1)
 
   ## Rename app resource files accordingly
@@ -60,11 +58,10 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
     os.rename(p.join(resources_path, f'{default_bundle_executable}.rsrc'),
               p.join(resources_path, f'{bundle_executable}.rsrc'))
   except Exception as e:
-    terminate_with_error(f'Error, while renaming app resource files: {e}')
+    log_print_error(f'Cannot rename the app resource files: {e}')
     exit(1)
 
   ## Copy icon to the app resources
-  # TODO: make sure relative paths work
   if icon_path:
     try:
       shutil.copy2(
@@ -72,6 +69,5 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
           p.join(app_path, 'Contents', 'Resources',
                  f'{bundle_executable}.icns'))
     except Exception as e:
-      terminate_with_error(
-          f'Error, while copying icon to the app resources: {e}')
+      log_print_error(f'Cannot copy the icon to the app resources: {e}')
       exit(1)

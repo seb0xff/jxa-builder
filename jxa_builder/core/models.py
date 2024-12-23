@@ -1,16 +1,16 @@
 from dataclasses import dataclass
 from os import path as p
-from typing import Optional, Literal, Union, Callable
+from typing import Optional, Literal, Union
 from typing_extensions import Annotated
 from pydantic import (BaseModel, ConfigDict, StringConstraints, ValidationInfo,
-                      Field, field_validator, computed_field)
-from pydantic.alias_generators import to_camel, to_snake
+                      Field, field_validator)
 
 
 @dataclass
 class CompilationUnit:
   input_path: str
   output_path: str
+  installation_path: str
 
 
 @dataclass
@@ -31,19 +31,18 @@ class LoadedPropInfo:
   original_name: Optional[str] = None
 
 
+#TODO: add bundle support
+#TODO: change to model validator
 class JxaProjectConfig(BaseModel):
   model_config: ConfigDict = ConfigDict(
-      # alias_generator=to_camel,
       str_strip_whitespace=True,
       extra='forbid',
       validate_default=True,
   )
   project_dir: str = Field(..., description="The project directory")
-  comp_mode: Literal['app', 'script',
-                     'bundle'] = Field('app',
+  comp_mode: Literal['app',
+                     'script'] = Field('app',
                                        description="The compilation mode")
-  deps_comp_mode: Literal['script', 'bundle'] = Field(
-      'script', description="The dependencies compilation mode")
   deps_install_mode: Literal['app', 'user', 'system'] = Field(
       'app', description="The dependencies installation mode")
   version: Annotated[str, StringConstraints(pattern=SEM_VER)] = Field(
@@ -65,13 +64,16 @@ class JxaProjectConfig(BaseModel):
   @field_validator('main', 'app_icon')
   @classmethod
   def path_must_exist(cls, value: Union[str, None],
-                      info: ValidationInfo) -> str:
+                      info: ValidationInfo) -> Optional[str]:
     if value:
-      package_dir = info.data['project_dir']
-      abs_path = p.join(package_dir, value)
+      if not p.isabs(value):
+        package_dir = info.data['project_dir']
+        abs_path = p.join(package_dir, value)
+      else:
+        abs_path = value
 
       if not p.exists(abs_path):
         raise ValueError(f'Path "{abs_path}" does not exist')
       if not p.isfile(abs_path):
         raise ValueError(f'Path "{abs_path}" is not a file')
-      return value
+      return abs_path

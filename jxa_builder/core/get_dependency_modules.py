@@ -1,8 +1,5 @@
 from os import path as p
 import re
-import glob
-from dataclasses import dataclass
-from pydantic import ValidationError
 from typing import List, Set
 from jxa_builder.core.get_project_config import get_project_config
 from jxa_builder.utils.printit import log_print_error
@@ -12,8 +9,8 @@ from jxa_builder.core.models import Module
 def get_dependency_modules(package_path: str) -> List[Module]:
   """Recursively get all dependencies"""
   dependencies = []
-  if not p.exists(p.join(package_path)):
-    log_print_error(f'Error, "{package_path}" does not exist')
+  if not p.exists(package_path):
+    log_print_error(f'"{package_path}" does not exist')
     exit(1)
   if p.isdir(package_path):
     jxa_config = get_project_config(package_path)
@@ -26,13 +23,13 @@ def get_dependency_modules(package_path: str) -> List[Module]:
     with open(source, 'r') as f:
       code = f.read()
   except Exception as e:
-    log_print_error(f'Error, while reading source "{source}": {e}')
+    log_print_error(f'Cannot read a source "{source}": {e}')
     exit(1)
   code = re.sub(r'//.*\n', '', code)
   code = re.sub(r'/\*[\s\S]*?\*/', '', code)
   libraries: Set[str] = set(re.findall(r'Library\(["\'](.+?)["\']\)', code))
 
-  # TODO: use glob module
+  # TODO: make the path absolute
   for lib in libraries:
     source_dir = p.dirname(source)
     ## Resolve relative paths
@@ -75,7 +72,7 @@ def get_dependency_modules(package_path: str) -> List[Module]:
       else:
         if deps_search_path == deps_search_paths[-1]:  # last iteration
           log_print_error(
-              f'Error, Could not find library "{lib}": "{lib_path}"\nMake sure it\'s actually installed if using a package manager (e.g. "npm install")'
+              f'Could not find library "{lib}": "{lib_path}"\nMake sure it\'s actually installed if using a package manager (e.g. "npm install")'
           )
           exit(1)
   return dependencies

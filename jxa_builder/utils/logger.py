@@ -1,11 +1,11 @@
 import logging
 # from rich.logging import RichHandler
-from jxa_builder.core.constants import LOG_FILE
+from jxa_builder.core.constants import LOG_FILE_ABS
 
 logger = logging.getLogger(__name__)
 
 shell_handler = logging.StreamHandler()
-file_handler = logging.FileHandler(LOG_FILE)
+file_handler = logging.FileHandler(LOG_FILE_ABS)
 
 logger.setLevel(logging.DEBUG)
 shell_handler.setLevel(100)

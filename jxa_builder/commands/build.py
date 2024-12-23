@@ -4,16 +4,17 @@ import re
 import shutil
 import subprocess
 import json
-from jxa_builder.utils.click_importer import click
-from typing import Optional, List, Set
+from dataclasses import asdict
+from jxa_builder.core.models import Module, CompilationUnit, LoadedPropInfo
+from jxa_builder.core.get_dependency_modules import get_dependency_modules
 from jxa_builder.core.get_project_config import get_project_config
-from jxa_builder.core.constants import BUILD_DIR, OUTPUT_DIR, LOCATIONS_FILE, PREPROCESSED_DIR
+from jxa_builder.core.modify_app_internals import modify_app_internals
+from jxa_builder.core.constants import OUTPUT_DIR, LOCATIONS_FILE, PREPROCESSED_DIR, APPS_DIR_ABS, APP_LIBS_DIR, USER_LIBS_DIR_ABS, SYSTEM_LIBS_DIR_ABS
 from jxa_builder.utils.logger import logger
+from jxa_builder.utils.click_importer import click
 from jxa_builder.utils.printit import log_print_error
 from jxa_builder.utils.recase import recase
 from jxa_builder.commands._shared_options import debug_option, project_dir_option
-from jxa_builder.core.models import Module, CompilationUnit, LoadedPropInfo
-from jxa_builder.core.get_dependency_modules import get_dependency_modules
 
 
 # TODO: generate these options from the project config model
@@ -22,40 +23,21 @@ from jxa_builder.core.get_dependency_modules import get_dependency_modules
 @click.option(
     '--comp-mode',
     type=click.Choice(['app', 'script']),
-    # default='app',
     show_default='app',
     help=
     'Whether to compile the main source to a standalone app (e.g. applet/droplet) or a script'
 )
 @click.option(
-    '--deps-comp-mode',
-    type=click.Choice(['script', 'bundle']),
-    # default='script',
-    show_default='script',
-    help=
-    'Dependencies compilation mode. Whether dependencies should be compiled as scripts or bundles'
-)
-@click.option(
     '--deps-install-mode',
     type=click.Choice(['app', 'user', 'system']),
-    # default='app',
     show_default='app',
     help=
     'Where to install dependencies. If the main file is compiled to a standalone app one can embed them inside. Otherwise they can be installed for a current user, or system wide'
 )
-@click.option(
-    '--version',
-    # default='1.0.0',
-    show_default='1.0.0',
-    help='Version of the project')
-@click.option(
-    '--main',
-    # default='index.js',
-    show_default='index.js',
-    help='Main source file')
+@click.option('--version', show_default='1.0.0', help='Version of the project')
+@click.option('--main', show_default='index.js', help='Main source file')
 @click.option(
     '--app-name',
-    # default='out',
     show_default='out',
     help='App name, (has effect only when compiling to a standalone app)')
 @click.option(
@@ -73,54 +55,71 @@ def build(**kwargs):
       })
 
   main_module = Module(
-      name='main',
-      #  source=jxa_config.main,
+      name=jxa_config.app_name if jxa_config.comp_mode == 'app' else 'main',
       source=p.join(project_dir, jxa_config.main),
       version=jxa_config.version)
-  if jxa_config.comp_mode == 'app':
-    main_module.name = jxa_config.app_name
 
   dependency_modules = get_dependency_modules(project_dir)
-  logger.debug(f'Dependencies: {dependency_modules}')
+  logger.debug(f'Gathered dependencies: {dependency_modules}')
 
   preprocessed_dir = p.join(project_dir, PREPROCESSED_DIR)
   output_dir = p.join(project_dir, OUTPUT_DIR)
-  build_dir = p.join(project_dir, BUILD_DIR)
-  # TODO: refactor error messages
+  locations_file = p.join(project_dir, LOCATIONS_FILE)
 
-  try:
-    shutil.rmtree(preprocessed_dir, ignore_errors=True)
-  except Exception as e:
-    log_print_error
-    (f'Error, while deleting temporary directory: {e}')
-    exit(1)
-  try:
-    shutil.rmtree(output_dir, ignore_errors=True)
-  except Exception as e:
-    log_print_error
-    (f'Error, while deleting output directory: {e}')
-    exit(1)
+  if p.exists(preprocessed_dir):
+    try:
+      shutil.rmtree(preprocessed_dir)
+    except Exception as e:
+      log_print_error(f'Cannot delete the preprocessed directory: {e}')
+      exit(1)
+
+  if p.exists(output_dir):
+    try:
+      shutil.rmtree(output_dir)
+    except Exception as e:
+      log_print_error(f'Cannot delete the output directory: {e}')
+      exit(1)
+
+  if p.exists(output_dir):
+    shutil.rmtree(output_dir)
+  if not p.exists(output_dir):
+    try:
+      os.makedirs(output_dir)
+    except:
+      log_print_error
+      (f'Cannot create the output directory: {e}')
+      exit(1)
 
   mirror_main_folder = p.join(
       preprocessed_dir,
       p.dirname(main_module.source).replace(project_dir + p.sep, ''))
   mirror_main_source = p.join(mirror_main_folder,
                               p.basename(main_module.source))
+
   try:
     os.makedirs(p.dirname(mirror_main_source), exist_ok=True)
   except Exception as e:
     log_print_error
-    (f'Error, while creating temporary directory: {e}')
+    (f'Cannot create the temporary directory: {e}')
     exit(1)
   try:
     shutil.copy2(main_module.source, p.dirname(mirror_main_source))
   except Exception as e:
     log_print_error
-    (f'Error, while copying main source to temporary directory: {e}')
+    (f'Cannot copy the main source to the temporary directory: {e}')
     exit(1)
-  main = CompilationUnit(mirror_main_source,
-                         p.join(output_dir, main_module.name))
-  libs: list[CompilationUnit] = []
+
+  comp_units: list[CompilationUnit] = []
+
+  if jxa_config.comp_mode == 'app':
+    main_suffix = '.app'
+  elif jxa_config.comp_mode == 'script':
+    main_suffix = '.scpt'
+  comp_units.append(
+      CompilationUnit(mirror_main_source,
+                      p.join(output_dir, main_module.name) + main_suffix,
+                      p.join(APPS_DIR_ABS, main_module.name) + main_suffix))
+
   for dep in dependency_modules:
     mirror_dependant_folder = p.join(
         preprocessed_dir,
@@ -135,20 +134,20 @@ def build(**kwargs):
       os.makedirs(mirror_folder, exist_ok=True)
     except Exception as e:
       log_print_error
-      (f'Error, while creating temporary directory for dependency: {e}')
+      (f'Cannot create the temporary directory for a dependency: {e}')
       exit(1)
     try:
       shutil.copy2(dep.source, mirror_folder)
     except Exception as e:
       log_print_error
-      ('Error, while copying dependency source to temporary directory: {e}')
+      ('Cannot copy a dependency source to the temporary directory: {e}')
       exit(1)
     try:
       with open(mirror_dependant_source, 'r') as f:
         code = f.read()
     except Exception as e:
       log_print_error
-      (f'Error, while reading dependant source: {e}')
+      (f'Cannot read a dependant source: {e}')
       exit(1)
     name_ver = dep.name + dep.version
     name_ver = name_ver.replace('.', '_')  # Dots are not allowed in lib name
@@ -159,172 +158,39 @@ def build(**kwargs):
         f.write(code)
     except Exception as e:
       log_print_error
-      (f'Error, while writing dependant source: {e}')
-      exit(1)
-    libs.append(CompilationUnit(mirror_source, name_ver))
-
-  ## Make pascal case from space separated, snake or kebab case string
-  bundle_executable = ''.join(
-      word[0].capitalize() + word[1:]
-      for word in re.split(r'[\s_-]+', p.basename(main.output_path)))
-
-  if jxa_config.comp_mode == 'app':
-    main_ext = 'app'
-  elif jxa_config.comp_mode == 'script':
-    main_ext = 'scpt'
-
-  main.output_path = f'{main.output_path}.{main_ext}'
-
-  ## Set library installation path
-  if jxa_config.deps_install_mode == 'app':
-    if jxa_config.comp_mode != 'app':
-      log_print_error
-      ('Error, library installation mode is set to "app", but the main file is not compiled to an app'
-       )
-      exit(1)
-    # if jxa_config.install_after:
-    #   main.output_path = p.join('/Applications', p.basename(main.output_path))
-    lib_dest = p.join(main.output_path, 'Contents', 'Resources',
-                      'Script Libraries')
-  elif jxa_config.deps_install_mode == 'user':
-    lib_dest = p.join(p.expanduser('~'), 'Library', 'Script Libraries')
-  elif jxa_config.deps_install_mode == "system":
-    lib_dest = p.join('/Library', 'Script Libraries')
-  else:
-    log_print_error
-    (f'Error, unknown library installation mode "{jxa_config.deps_install_mode}"'
-     )
-    exit(1)
-
-  if jxa_config.deps_comp_mode == 'script':
-    lib_ext = 'scpt'
-  elif jxa_config.deps_comp_mode == 'bundle':
-    lib_ext = 'scptd'
-  else:
-    log_print_error
-    (f'Error, unknown library compilation mode "{jxa_config.deps_comp_mode}"')
-    exit(1)
-
-  for lib in libs:
-    lib.output_path = p.join(lib_dest, f'{lib.output_path}.{lib_ext}')
-
-  ## Create fresh output directory
-  if p.exists(output_dir):
-    shutil.rmtree(output_dir)
-  if not p.exists(output_dir):
-    try:
-      os.makedirs(output_dir)
-    except:
-      log_print_error
-      (f'Error, while creating output directory: {e}')
+      (f'Cannot write a dependant source: {e}')
       exit(1)
 
-  ## Compile
-  outputs: dict[str, str] = {}
-  for item in [main] + libs:
-    ## Instead of installing directly to the output path,
-    ## install to the output directory.
-    ## Optionally, move the outputs to the final destinations
-    ## using "--install_after" flag or "install" command
-    # TODO: try to move this logic to compilation unit
-    outputs[p.join(output_dir,
-                   p.basename(item.output_path))] = p.dirname(item.output_path)
-    item.output_path = p.join(output_dir, p.basename(item.output_path))
+    ## Installation paths
+    if jxa_config.deps_install_mode == 'app':
+      if jxa_config.comp_mode != 'app':
+        log_print_error
+        ('Error, library installation mode is set to "app", but the main file is not compiled to an app'
+         )
+        exit(1)
+      lib_dest = p.join(comp_units[0].installation_path, APP_LIBS_DIR)
+    elif jxa_config.deps_install_mode == 'user':
+      lib_dest = USER_LIBS_DIR_ABS
+    elif jxa_config.deps_install_mode == "system":
+      lib_dest = SYSTEM_LIBS_DIR_ABS
+    comp_units.append(
+        CompilationUnit(mirror_source, f'{p.join(output_dir, name_ver)}.scpt',
+                        f'{p.join(lib_dest, name_ver)}.scpt'))
 
+  with open(locations_file, 'w') as f:
+    f.write(json.dumps([asdict(d) for d in comp_units], indent=2))
+
+  logger.debug(f'Gathered compilation units: {comp_units}')
+  logger.info('Compiling...')
+  for unit in comp_units:
     command = [
-        'osacompile', '-l', 'JavaScript', '-o', item.output_path,
-        item.input_path
+        'osacompile', '-l', 'JavaScript', '-o', unit.output_path,
+        unit.input_path
     ]
     try:
       subprocess.run(command, check=True, text=True)
     except subprocess.CalledProcessError as e:
-      log_print_error
-      (f'Error running osacompile: {e}')
+      log_print_error(f'Something bad happened during compilation: {e}')
       exit(1)
 
-  try:
-    with open(p.join(project_dir, LOCATIONS_FILE), 'w') as f:
-      f.write(json.dumps(outputs, indent=2))
-  except Exception as e:
-    log_print_error
-    (f'Error, while writing locations file: {e}')
-    exit(1)
-
-  ## TODO: move this to a separate file
-  ## Modify Info.plist and app resources
-  if jxa_config.comp_mode == "app":
-    try:
-      with open(p.join(main.output_path, 'Contents', 'Info.plist'),
-                'r') as file:
-        info_plist = file.read()
-    except Exception as e:
-      log_print_error
-      (f'Error, while reading Info.plist: {e}')
-      exit(1)
-
-    default_bundle_executable = re.search(
-        r'(<key>CFBundleExecutable</key>\s+<string>)(\w+?)(</string>)',
-        info_plist).group(2)
-
-    ## Replace bundle executable name
-    info_plist = re.sub(
-        r'(<key>CFBundleExecutable</key>\s+<string>)\w+?(</string>)',
-        f'\\g<1>{bundle_executable}\\g<2>', info_plist)
-
-    ## Replace bundle icon name
-    info_plist = re.sub(
-        r'(<key>CFBundleIconFile</key>\s+<string>)\w+?(</string>)',
-        f'\\g<1>{bundle_executable}.icns\\g<2>', info_plist)
-
-    try:
-      with open(p.join(main.output_path, 'Contents', 'Info.plist'),
-                'w') as file:
-        file.write(info_plist)
-    except Exception as e:
-      log_print_error
-      (f'Error, while writing Info.plist: {e}')
-      exit(1)
-
-    ## Rename bundle executable accordingly
-    try:
-      if p.exists(
-          p.join(main.output_path, 'Contents', 'MacOS',
-                 default_bundle_executable)):
-        os.rename(
-            p.join(main.output_path, 'Contents', 'MacOS',
-                   default_bundle_executable),
-            p.join(main.output_path, 'Contents', 'MacOS', bundle_executable))
-    except Exception as e:
-      log_print_error
-      (f'Error, while renaming bundle executable: {e}')
-      exit(1)
-
-    ## Rename app resource files accordingly
-    try:
-      os.rename(
-          p.join(main.output_path, 'Contents', 'Resources',
-                 f'{default_bundle_executable}.icns'),
-          p.join(main.output_path, 'Contents', 'Resources',
-                 f'{bundle_executable}.icns'))
-      os.rename(
-          p.join(main.output_path, 'Contents', 'Resources',
-                 f'{default_bundle_executable}.rsrc'),
-          p.join(main.output_path, 'Contents', 'Resources',
-                 f'{bundle_executable}.rsrc'))
-    except Exception as e:
-      log_print_error
-      (f'Error, while renaming app resource files: {e}')
-      exit(1)
-
-    ## Copy icon to the app resources
-    # TODO: make sure relative paths work
-    if jxa_config.app_icon:
-      try:
-        shutil.copy2(
-            p.join(project_dir, jxa_config.app_icon),
-            p.join(main.output_path, 'Contents', 'Resources',
-                   f'{bundle_executable}.icns'))
-      except Exception as e:
-        log_print_error
-        (f'Error, while copying icon to the app resources: {e}')
-        exit(1)
+  modify_app_internals(comp_units[0].output_path, jxa_config.app_icon)
