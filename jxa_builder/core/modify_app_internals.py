@@ -35,6 +35,11 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
       r'(<key>CFBundleIconFile</key>\s+<string>)\w+?(</string>)',
       f'\\g<1>{bundle_executable}.icns\\g<2>', info_plist)
 
+  ## Replace bundle signature
+  info_plist = re.sub(
+      r'(<key>CFBundleSignature</key>\s+<string>)\w+?(</string>)',
+      f'\\g<1>com.jxabuilder.{bundle_executable}\\g<2>', info_plist)
+
   try:
     with open(info_plist_path, 'w') as f:
       f.write(info_plist)
