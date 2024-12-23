@@ -4,6 +4,7 @@ from typing import List, Set
 from jxa_builder.core.get_project_config import get_project_config
 from jxa_builder.utils.printit import log_print_error
 from jxa_builder.core.models import Module
+from jxa_builder.utils.logger import logger
 
 
 def get_dependency_modules(package_path: str) -> List[Module]:
@@ -29,14 +30,11 @@ def get_dependency_modules(package_path: str) -> List[Module]:
   code = re.sub(r'/\*[\s\S]*?\*/', '', code)
   libraries: Set[str] = set(re.findall(r'Library\(["\'](.+?)["\']\)', code))
 
-  # TODO: make the path absolute
   for lib in libraries:
-    source_dir = p.dirname(source)
-    ## Resolve relative paths
-    while lib.startswith('../'):
-      lib = lib[3:]
-      source_dir = p.dirname(source_dir)
-    # lib_path = p.join(source_dir, lib)
+    lib_path = p.join(p.dirname(source), lib)
+    lib_path = p.abspath(p.realpath(lib_path))
+    source_dir = p.dirname(lib_path)
+    lib = p.basename(lib_path)
 
     # TODO: add global node_modules search path
     deps_search_paths = [
