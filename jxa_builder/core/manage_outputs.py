@@ -6,7 +6,7 @@ import json
 from typing import Literal, List
 from jxa_builder.core.constants import SYSTEM_TMP_DIR_ABS, APPS_DIR_ABS
 from jxa_builder.core.models import CompilationUnit
-from jxa_builder.utils.printit import log_print_error
+from jxa_builder.utils.printit import log_print_error, log_print_warning
 from jxa_builder.utils.logger import logger
 
 #TODO: Make it completely independent to the build command
@@ -103,8 +103,8 @@ def manage_outputs(action: Literal['install', 'uninstall'],
           try:
             shutil.rmtree(system_tmp)
           except Exception as e:
-            log_print_error(f'Cannot delete temporary directory (system): {e}')
-            # exit(1)
+            log_print_warning(
+                f'Cannot delete temporary directory (system): {e}')
 
   else:
     log_print_error(f'Locations file: {locations_file} not found')
