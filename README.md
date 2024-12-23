@@ -60,7 +60,7 @@ are equivalent to these command line options:
 --version 2.0.0 \
 --main src/index.js \
 --app-icon Neovim.icns \
---app-name "Neovim Launcher"
+--app-name "Neovim"
 ```
 
 **To build and install**
