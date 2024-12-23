@@ -12,6 +12,7 @@ from jxa_builder.core.constants import LOCATIONS_FILE
               help='Path to the project directory or the locations.json file')
 @click.option('--deps-only',
               is_flag=True,
+              default=False,
               help='Whether to install only the dependencies')
 @debug_option
 def install(path: str, deps_only: bool):

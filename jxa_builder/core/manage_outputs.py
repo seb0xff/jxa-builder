@@ -47,10 +47,10 @@ def manage_outputs(action: Literal['install', 'uninstall'],
         output_dir = p.dirname(target)
       if target != dest_file:
         try:
-          if p.exists(dest_file):
+          if p.exists(dest_file) and p.exists(target):
             shutil.rmtree(dest_file) if p.isdir(dest_file) else os.remove(
                 dest_file)
-          if action == 'install':
+          if action == 'install' and p.exists(target):
             os.makedirs(dest_file_dir, exist_ok=True)
             shutil.copytree(
                 target, dest_file_dir,
@@ -66,13 +66,12 @@ def manage_outputs(action: Literal['install', 'uninstall'],
         ##   More info: https://stackoverflow.com/a/68694914
         except Exception as e:
           # except PermissionError as e:
+          target = p.join(system_tmp, p.basename(target))
           perm_problem = True
-
-        if perm_problem:
-          shell_command += f'[ -e "{dest_file}" ] && rm -r "{dest_file}" || true;'  ## true to make exit code 0
+          ## The assembled command is executed later, so all the checks need to be done again
+          shell_command += f'[ -e "{dest_file}" ] && [ -e "{target}" ] && rm -r "{dest_file}" || true;'  ## true to make exit code 0
           if action == 'install':
-            target = p.join(system_tmp, p.basename(target))
-            shell_command += f'mkdir -p "{dest_file_dir}" && mv "{target}" "{dest_file_dir}";'
+            shell_command += f'[ -e "{target}" ] && (mkdir -p "{dest_file_dir}" && mv "{target}" "{dest_file_dir}");'
 
     if perm_problem:
       jxa_command = f'''
