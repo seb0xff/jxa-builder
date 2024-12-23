@@ -1,6 +1,6 @@
 from os import path as p
 import re
-from typing import List, Set
+from typing import List, Set, Optional
 from jxa_builder.core.get_project_config import get_project_config
 from jxa_builder.core.constants import DEPS_DIR, NODE_DIR
 from jxa_builder.utils.printit import log_print_error
@@ -8,9 +8,12 @@ from jxa_builder.core.models import Module
 from jxa_builder.utils.logger import logger
 
 
-def get_dependency_modules(package_path: str) -> List[Module]:
+def get_dependency_modules(root_package_path: str,
+                           package_path: Optional[str] = None) -> List[Module]:
   """Recursively get all dependencies"""
   dependencies = []
+  if not package_path:
+    package_path = root_package_path
   if not p.exists(package_path):
     log_print_error(f'"{package_path}" does not exist')
     exit(1)
@@ -40,9 +43,11 @@ def get_dependency_modules(package_path: str) -> List[Module]:
     # TODO: add global node_modules search path
     deps_search_paths = [
         source_dir,
+        p.join(root_package_path, DEPS_DIR),
+        p.join(root_package_path, NODE_DIR),
         p.join(package_path, DEPS_DIR),
         p.join(package_path, NODE_DIR)
-    ]
+    ]  # some of the paths may repeat, but it's fine bcs it breaks the loop after the first match
     for deps_search_path in deps_search_paths:
       lib_path = p.join(deps_search_path, lib)
 
@@ -55,7 +60,7 @@ def get_dependency_modules(package_path: str) -> List[Module]:
                    source=lib_source,
                    version=lib_version,
                    dependant_source=source))
-        dependencies += get_dependency_modules(lib_path)
+        dependencies += get_dependency_modules(root_package_path, lib_path)
         break  # found
       elif p.exists(lib_path + '.js'):
         lib_source = lib_path + '.js'
@@ -64,7 +69,7 @@ def get_dependency_modules(package_path: str) -> List[Module]:
                    source=lib_source,
                    version='',
                    dependant_source=source))
-        dependencies += get_dependency_modules(lib_source)
+        dependencies += get_dependency_modules(root_package_path, lib_source)
         break  # found
       else:
         if deps_search_path == deps_search_paths[-1]:  # last iteration
