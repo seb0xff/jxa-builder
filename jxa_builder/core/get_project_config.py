@@ -1,5 +1,4 @@
-from typing import Optional, Literal, Dict, Callable, List, Dict, Tuple
-import os
+from typing import Optional, Dict, Dict
 from os import path as p
 import json
 from pydantic import ValidationError
@@ -7,17 +6,16 @@ from jxa_builder.core.constants import PACKAGE_JSON_FILE, JXA_JSON_FILE
 from jxa_builder.utils.remove_empty_values import remove_empty_values
 from jxa_builder.utils.logger import logger
 from jxa_builder.utils.recase import recase
-from jxa_builder.utils.printit import log_print_error
+from jxa_builder.utils.printit import log_print_error, log_print_warning
 from jxa_builder.core.models import JxaProjectConfig, SEM_VER, LoadedPropInfo
 from jxa_builder.core.constants import IS_RICH
 
 
 def get_json_obj(file_path: str) -> Dict[str, any]:
   if not p.exists(file_path):
-    print(f'"{file_path}" does not exist.')
     return {}
   if not p.isfile(file_path):
-    print(f'"{file_path}" is not a file.')
+    log_print_warning(f'"{file_path}" is not a file.')
     return {}
 
   with open(file_path) as f:

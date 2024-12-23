@@ -1,7 +1,7 @@
 import logging
-# from rich.logging import RichHandler
 from jxa_builder.core.constants import LOG_FILE_ABS
 
+# TODO: Make log file circular
 logger = logging.getLogger(__name__)
 
 shell_handler = logging.StreamHandler()
