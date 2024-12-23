@@ -2,12 +2,14 @@ from typing import Optional, Literal, Dict, Callable, List, Dict, Tuple
 import os
 from os import path as p
 import json
+from pydantic import ValidationError
 from jxa_builder.core.constants import PACKAGE_JSON_FILE, JXA_JSON_FILE
 from jxa_builder.utils.remove_empty_values import remove_empty_values
 from jxa_builder.utils.logger import logger
 from jxa_builder.utils.recase import recase
 from jxa_builder.utils.printit import terminate_with_error
 from jxa_builder.core.models import JxaProjectConfig, SEM_VER, LoadedPropInfo
+from jxa_builder.core.constants import IS_RICH
 
 
 def get_json_obj(file_path: str) -> Dict[str, any]:
@@ -31,50 +33,9 @@ def get_json_obj(file_path: str) -> Dict[str, any]:
   return json_dict
 
 
-ErrorsNumber = int
-OriginalName = str
-
-# def validate_dict_with_model(
-#     json_obj: Dict[str, any],
-#     *,
-#     error_msg_header: Optional[Callable[[ErrorsNumber], str]] = None,
-#     prop_alt_name: Optional[Callable[[OriginalName], str]] = None,
-# ):
-#   try:
-#     logger.debug(f'Validating: {json_obj}')
-#     JxaProjectConfig(**json_obj)
-#   except ValidationError as e:
-#     errors = e.errors()
-#     error_msg = ''
-#     if error_msg_header:
-#       error_msg += error_msg_header(len(errors))
-#     else:
-#       error_msg += f'\n{len(errors)} validation error(s)'
-#     for error in e.errors():
-#       prop = error['loc'][0]
-#       if prop_alt_name:
-#         prop = prop_alt_name(prop)
-#       error_msg += f'\n{prop}'
-#       if error['type'] == 'extra_forbidden':
-#         error_msg += f'''\n  Unrecognized property (input value: '{error["input"]}')'''
-#       elif error['type'] == 'string_pattern_mismatch' and error['ctx'][
-#           'pattern'] == SEM_VER:
-#         error_msg += f'''\n  Input should be a valid semantic version (input value: '{error["input"]}')'''
-#       elif error['type'] == 'value_error':
-#         error_msg += f'''\n  {error["msg"][error["msg"].find(', ')+2:]} (input value: '{error["input"]}')'''
-#       else:
-#         error_msg += f'''\n  {error["msg"]} (input value: '{error["input"]}')'''
-
-#     terminate_with_error(error_msg)
-
-
-def validate_dict(dict: Dict[str, any]):
-  ...
-
-
 def get_project_config(
     project_dir: str,
-    cmd_overrides: Optional[Dict[str, any]] = None) -> 'JxaProjectConfig':
+    overrides: Optional[Dict[str, LoadedPropInfo]] = None) -> JxaProjectConfig:
   logger.debug(f'Getting project config of: {project_dir}')
 
   def to_snake_dict(d: Dict[str, any]) -> Dict[str, any]:
@@ -127,20 +88,37 @@ def get_project_config(
     })
 
   # overrides
-  if cmd_overrides:
-    cmd_overrides = remove_empty_values(cmd_overrides)
-    cmd_overrides = to_snake_dict(cmd_overrides)
+  if overrides:
+    cli_dict = {k: v.value for k, v in overrides.items()}
+    cli_dict = remove_empty_values(cli_dict)
+    cli_dict = to_snake_dict(cli_dict)
     properties.update({
         k:
-        LoadedPropInfo(v, 'command line', f'--{recase(k, "kebab")}')
-        for k, v in cmd_overrides.items()
+        LoadedPropInfo(v, overrides[k].origin, overrides[k].original_name)
+        for k, v in cli_dict.items()
     })
 
-  validate_dict(properties)
+  try:
+    return JxaProjectConfig(**{k: v.value for k, v in properties.items()})
+  except ValidationError as e:
+    errors = e.errors()
+    error_msg = f'\n{len(errors)} validation error(s)'
+    for error in e.errors():
+      prop = error['loc'][0]
+      prop_info = properties[prop]
+      error_msg += (f'\n[bold cyan]{prop_info.original_name}[/bold cyan]'
+                    if IS_RICH else f'\n{prop_info.original_name}') + (
+                        f" in {prop_info.origin}" if prop_info.origin else "")
+      if error['type'] == 'extra_forbidden':
+        error_msg += f'''\n  Unrecognized property (input value: '{error["input"]}')'''
+      elif error['type'] == 'string_pattern_mismatch' and error['ctx'][
+          'pattern'] == SEM_VER:
+        error_msg += f'''\n  Input should be a valid semantic version (input value: '{error["input"]}')'''
+      elif error['type'] == 'value_error':
+        error_msg += f'''\n  {error["msg"][error["msg"].find(', ')+2:]} (input value: '{error["input"]}')'''
+      else:
+        error_msg += f'''\n  {error["msg"]} (input value: '{error["input"]}')'''
 
-  return JxaProjectConfig({k: v.value for k, v in properties.items()})
-
-
-if __name__ == '__main__':
-  config = get_project_config(
-      '/Users/sebastian/Documents/src/js/DoubleClickConsoleEdit')
+    terminate_with_error(error_msg)
+    # logger.fatal(error_msg)
+    # exit(1)

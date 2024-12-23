@@ -6,12 +6,13 @@ import subprocess
 import json
 from jxa_builder.utils.click_importer import click
 from typing import Optional, List, Set
-from jxa_builder.core.get_project_config import get_project_config, cmd_args_override
+from jxa_builder.core.get_project_config import get_project_config
 from jxa_builder.core.constants import BUILD_DIR, OUTPUT_DIR, LOCATIONS_FILE, PREPROCESSED_DIR
 from jxa_builder.utils.logger import logger
 from jxa_builder.utils.printit import terminate_with_error
-from _shared_options import debug_option, project_dir_option
-from jxa_builder.core.models import Module, CompilationUnit
+from jxa_builder.utils.recase import recase
+from jxa_builder.commands._shared_options import debug_option, project_dir_option
+from jxa_builder.core.models import Module, CompilationUnit, LoadedPropInfo
 from jxa_builder.core.get_dependency_modules import get_dependency_modules
 
 
@@ -63,10 +64,15 @@ from jxa_builder.core.get_dependency_modules import get_dependency_modules
 )
 @debug_option
 def build(**kwargs):
-  project_dir = kwargs.pop('project_dir')
-  jxa_config = get_project_config(project_dir,
-                                  lambda: cmd_args_override(kwargs))
+  project_dir = kwargs['project_dir']
+  jxa_config = get_project_config(
+      project_dir, {
+          k: LoadedPropInfo(v, '', '--' + recase(k, 'kebab'))
+          for k, v in kwargs.items()
+      })
 
+  print(jxa_config)
+  return
   main_module = Module(
       name='main',
       #  source=jxa_config.main,
