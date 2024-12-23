@@ -6,11 +6,14 @@ indent_width = 2
 
 [tool.poetry]
 name = "jxa-builder"
-version = "0.1.0"
-description = "Javascript for Automation build system"
+version = "1.0.0"
+description = "A Javascript for Automation build system"
 authors = ["seb0xff <contact.git@seb0xff.dev>"]
 license = "BSD-4-Clause"
 readme = "README.md"
+
+[tool.poetry.scripts]
+jxa-builder = 'jxa_builder.cli:cli'
 
 [tool.poetry.dependencies]
 python = "^3.8"
