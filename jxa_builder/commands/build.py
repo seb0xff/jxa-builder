@@ -162,7 +162,12 @@ def build(**kwargs):
 
     ## Installation paths
     if jxa_config.deps_install_mode == 'app':
-      lib_dest = p.join(comp_units[0].installation_path, APP_LIBS_DIR)
+      if jxa_config.comp_mode == 'app':
+        ## output path because the app doesn't have to be installed
+        ## (the installation path would't exist)
+        lib_dest = p.join(comp_units[0].output_path, APP_LIBS_DIR)
+      else:
+        lib_dest = p.join(comp_units[0].installation_path, APP_LIBS_DIR)
     elif jxa_config.deps_install_mode == 'user':
       lib_dest = USER_LIBS_DIR_ABS
     elif jxa_config.deps_install_mode == "system":
