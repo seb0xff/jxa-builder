@@ -18,7 +18,7 @@ from jxa_builder.commands._shared_options import debug_option, project_dir_optio
 
 
 # TODO: generate these options from the project config model
-@click.command()
+@click.command(help='Build the project.')
 @project_dir_option
 @click.option(
     '--comp-mode',

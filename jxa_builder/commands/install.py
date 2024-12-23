@@ -5,7 +5,7 @@ from ._shared_options import debug_option
 from jxa_builder.core.constants import LOCATIONS_FILE
 
 
-@click.command()
+@click.command(help='Copy compiled files to appropriate locations.')
 @click.option('--path',
               type=click.Path(exists=True),
               default=getcwd(),

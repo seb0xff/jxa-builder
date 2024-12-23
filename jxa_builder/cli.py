@@ -6,9 +6,9 @@ from jxa_builder.commands.freeze_nodejs_deps import freeze_nodejs_deps
 
 
 @click.group(
-    # invoke_without_command=True,
+    context_settings=dict(help_option_names=["-h", "--help"]),
     help=
-    'Javascript for Automation build system.\n\nTo turn on classic display mode set JXA_BUILDER_CLASSIC_DISPLAY_MODE env variable to true.'
+    'A build system for Javascript for Automation.\n\nTo turn on classic display mode set JXA_BUILDER_CLASSIC_DISPLAY_MODE env variable to true.'
 )
 def cli():
   pass

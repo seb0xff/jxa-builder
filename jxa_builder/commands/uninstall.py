@@ -5,7 +5,7 @@ from ._shared_options import debug_option
 from jxa_builder.core.constants import LOCATIONS_FILE
 
 
-@click.command()
+@click.command(help='Delete the target and its dependencies.')
 @click.option('--path',
               type=click.Path(exists=True),
               default=getcwd(),

@@ -11,7 +11,7 @@ from jxa_builder.commands._shared_options import debug_option, project_dir_optio
 
 @click.command(
     help=
-    'Copy nodejs dependencies to the dependencies directory. It is useful when the target needs to be built on a machine without nodejs installed'
+    'Copy nodejs dependencies to the dependencies directory. It is useful when the target needs to be built on a machine without nodejs installed.'
 )
 @project_dir_option
 @debug_option
