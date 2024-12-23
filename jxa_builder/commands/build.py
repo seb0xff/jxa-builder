@@ -193,4 +193,5 @@ def build(**kwargs):
       log_print_error(f'Something bad happened during compilation: {e}')
       exit(1)
 
-  modify_app_internals(comp_units[0].output_path, jxa_config.app_icon)
+  if jxa_config.comp_mode == 'app':
+    modify_app_internals(comp_units[0].output_path, jxa_config.app_icon)
