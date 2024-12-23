@@ -86,6 +86,8 @@ class JxaProjectConfig(BaseModel):
         raise ValueError(f'Path "{app_icon}" is not a file')
     elif p.exists(p.join(project_dir, 'icon.icns')):
       app_icon = p.join(project_dir, 'icon.icns')
+    elif p.exists(p.join(project_dir, info.data['app_name'] + '.icns')):
+      app_icon = p.join(project_dir, 'icon.icns')
     else:
       app_icon = None
 
