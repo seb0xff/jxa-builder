@@ -2,6 +2,7 @@ from os import path as p
 import re
 from typing import List, Set
 from jxa_builder.core.get_project_config import get_project_config
+from jxa_builder.core.constants import DEPS_DIR, NODE_DIR
 from jxa_builder.utils.printit import log_print_error
 from jxa_builder.core.models import Module
 from jxa_builder.utils.logger import logger
@@ -39,8 +40,8 @@ def get_dependency_modules(package_path: str) -> List[Module]:
     # TODO: add global node_modules search path
     deps_search_paths = [
         source_dir,
-        p.join(source_dir, 'dependencies'),
-        p.join(package_path, 'node_modules')
+        p.join(package_path, DEPS_DIR),
+        p.join(package_path, NODE_DIR)
     ]
     for deps_search_path in deps_search_paths:
       lib_path = p.join(deps_search_path, lib)
@@ -59,18 +60,17 @@ def get_dependency_modules(package_path: str) -> List[Module]:
       elif p.exists(lib_path + '.js'):
         lib_source = lib_path + '.js'
         dependencies.append(
-            Module(
-                name=lib,
-                source=lib_source,
-                # version=lib_version,
-                version='',
-                dependant_source=source))
+            Module(name=lib,
+                   source=lib_source,
+                   version='',
+                   dependant_source=source))
         dependencies += get_dependency_modules(lib_source)
         break  # found
       else:
         if deps_search_path == deps_search_paths[-1]:  # last iteration
           log_print_error(
-              f'Could not find library "{lib}": "{lib_path}"\nMake sure it\'s actually installed if using a package manager (e.g. "npm install")'
+              f'Could not find library "{lib}": "{lib_path}"\nIf you use a package manager, make sure it\'s actually installed(e.g. "npm list ")'
           )
           exit(1)
+  logger.debug(f'Gathered dependencies: {dependencies}')
   return dependencies
