@@ -78,20 +78,24 @@ class JxaProjectConfig(BaseModel):
   def resolve_icon_path(cls, value: Optional[str],
                         info: ValidationInfo) -> Optional[str]:
     project_dir = info.data['project_dir']
+
     if value:
       app_icon = p.join(project_dir, value)
       if not p.exists(app_icon):
         raise ValueError(f'Path "{app_icon}" does not exist')
       if not p.isfile(app_icon):
         raise ValueError(f'Path "{app_icon}" is not a file')
-    elif p.exists(p.join(project_dir, 'icon.icns')):
-      app_icon = p.join(project_dir, 'icon.icns')
-    elif p.exists(p.join(project_dir, info.data['app_name'] + '.icns')):
-      app_icon = p.join(project_dir, 'icon.icns')
-    else:
-      app_icon = None
+      return app_icon
 
-    return app_icon
+    app_icon = p.join(project_dir, 'icon.icns')
+    if p.exists(app_icon):
+      return app_icon
+
+    app_icon = p.join(project_dir, info.data['app_name'] + '.icns')
+    if p.exists(app_icon):
+      return app_icon
+
+    return None
 
   @model_validator(mode='after')
   def validate_model(self) -> Self:
