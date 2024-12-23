@@ -43,7 +43,10 @@ def get_project_config(
   def to_snake_dict(d: Dict[str, any]) -> Dict[str, any]:
     return {recase(k, 'snake'): v for k, v in d.items()}
 
-  properties: Dict[str, LoadedPropInfo] = {}
+  properties: Dict[str, LoadedPropInfo] = {
+      'project_dir':
+      LoadedPropInfo(project_dir, 'function argument', 'project_dir')
+  }
 
   package_json_file = p.join(project_dir, PACKAGE_JSON_FILE)
   jxa_json_file = p.join(project_dir, JXA_JSON_FILE)
