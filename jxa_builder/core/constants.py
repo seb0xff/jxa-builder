@@ -1,7 +1,10 @@
 from os import path as p, environ
+import importlib.util
 
-IS_RICH = environ.get('JXA_BUILDER_CLASSIC_DISPLAY_MODE',
-                      'false').lower() not in ('true', '1', 'yes')
+IS_RICH = environ.get(
+    'JXA_BUILDER_CLASSIC_DISPLAY_MODE',
+    'false').lower() not in ('true', '1',
+                             'yes') and importlib.util.find_spec('rich_click')
 APP_NAME = 'jxa-builder'
 BUILD_DIR = 'build'
 OUTPUT_DIR = p.join(BUILD_DIR, 'output')
