@@ -29,15 +29,13 @@ def print_warning(warning_msg: str, title: str = 'Warning'):
     print(warning_msg)
 
 
-def terminate_with_error(error_msg: str,
-                         *,
-                         title: str = 'Error',
-                         incl_traceback: bool = True,
-                         exit_code: int = 1):
-  """Prints a given error message, log it and exit with specified error code"""
+def log_print_error(
+    error_msg: str,
+    title: str = 'Error',
+    incl_traceback: bool = True,
+):
   print_error(error_msg, title)
   if IS_RICH:
     error_msg = Text.from_markup(error_msg).plain
 
   logger.fatal(error_msg, exc_info=incl_traceback)
-  exit(exit_code)

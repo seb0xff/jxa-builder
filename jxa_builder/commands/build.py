@@ -9,13 +9,14 @@ from typing import Optional, List, Set
 from jxa_builder.core.get_project_config import get_project_config
 from jxa_builder.core.constants import BUILD_DIR, OUTPUT_DIR, LOCATIONS_FILE, PREPROCESSED_DIR
 from jxa_builder.utils.logger import logger
-from jxa_builder.utils.printit import terminate_with_error
+from jxa_builder.utils.printit import log_print_error
 from jxa_builder.utils.recase import recase
 from jxa_builder.commands._shared_options import debug_option, project_dir_option
 from jxa_builder.core.models import Module, CompilationUnit, LoadedPropInfo
 from jxa_builder.core.get_dependency_modules import get_dependency_modules
 
 
+# TODO: generate these options from the project config model
 @click.command()
 @project_dir_option
 @click.option(
@@ -71,8 +72,6 @@ def build(**kwargs):
           for k, v in kwargs.items()
       })
 
-  print(jxa_config)
-  return
   main_module = Module(
       name='main',
       #  source=jxa_config.main,
@@ -92,11 +91,15 @@ def build(**kwargs):
   try:
     shutil.rmtree(preprocessed_dir, ignore_errors=True)
   except Exception as e:
-    terminate_with_error(f'Error, while deleting temporary directory: {e}')
+    log_print_error
+    (f'Error, while deleting temporary directory: {e}')
+    exit(1)
   try:
     shutil.rmtree(output_dir, ignore_errors=True)
   except Exception as e:
-    terminate_with_error(f'Error, while deleting output directory: {e}')
+    log_print_error
+    (f'Error, while deleting output directory: {e}')
+    exit(1)
 
   mirror_main_folder = p.join(
       preprocessed_dir,
@@ -106,12 +109,15 @@ def build(**kwargs):
   try:
     os.makedirs(p.dirname(mirror_main_source), exist_ok=True)
   except Exception as e:
-    terminate_with_error(f'Error, while creating temporary directory: {e}')
+    log_print_error
+    (f'Error, while creating temporary directory: {e}')
+    exit(1)
   try:
     shutil.copy2(main_module.source, p.dirname(mirror_main_source))
   except Exception as e:
-    terminate_with_error(
-        f'Error, while copying main source to temporary directory: {e}')
+    log_print_error
+    (f'Error, while copying main source to temporary directory: {e}')
+    exit(1)
   main = CompilationUnit(mirror_main_source,
                          p.join(output_dir, main_module.name))
   libs: list[CompilationUnit] = []
@@ -128,19 +134,22 @@ def build(**kwargs):
     try:
       os.makedirs(mirror_folder, exist_ok=True)
     except Exception as e:
-      terminate_with_error(
-          f'Error, while creating temporary directory for dependency: {e}')
+      log_print_error
+      (f'Error, while creating temporary directory for dependency: {e}')
+      exit(1)
     try:
       shutil.copy2(dep.source, mirror_folder)
     except Exception as e:
-      terminate_with_error(
-          f'Error, while copying dependency source to temporary directory: {e}'
-      )
+      log_print_error
+      ('Error, while copying dependency source to temporary directory: {e}')
+      exit(1)
     try:
       with open(mirror_dependant_source, 'r') as f:
         code = f.read()
     except Exception as e:
-      terminate_with_error(f'Error, while reading dependant source: {e}')
+      log_print_error
+      (f'Error, while reading dependant source: {e}')
+      exit(1)
     name_ver = dep.name + dep.version
     name_ver = name_ver.replace('.', '_')  # Dots are not allowed in lib name
     code = re.sub(f'(Library\\(["\'])(?:.+/)*{dep.name}(["\']\\))',
@@ -149,7 +158,9 @@ def build(**kwargs):
       with open(mirror_dependant_source, 'w') as f:
         f.write(code)
     except Exception as e:
-      terminate_with_error(f'Error, while writing dependant source: {e}')
+      log_print_error
+      (f'Error, while writing dependant source: {e}')
+      exit(1)
     libs.append(CompilationUnit(mirror_source, name_ver))
 
   ## Make pascal case from space separated, snake or kebab case string
@@ -167,9 +178,10 @@ def build(**kwargs):
   ## Set library installation path
   if jxa_config.deps_install_mode == 'app':
     if jxa_config.comp_mode != 'app':
-      terminate_with_error(
-          'Error, library installation mode is set to "app", but the main file is not compiled to an app'
-      )
+      log_print_error
+      ('Error, library installation mode is set to "app", but the main file is not compiled to an app'
+       )
+      exit(1)
     # if jxa_config.install_after:
     #   main.output_path = p.join('/Applications', p.basename(main.output_path))
     lib_dest = p.join(main.output_path, 'Contents', 'Resources',
@@ -179,18 +191,19 @@ def build(**kwargs):
   elif jxa_config.deps_install_mode == "system":
     lib_dest = p.join('/Library', 'Script Libraries')
   else:
-    terminate_with_error(
-        f'Error, unknown library installation mode "{jxa_config.deps_install_mode}"'
-    )
+    log_print_error
+    (f'Error, unknown library installation mode "{jxa_config.deps_install_mode}"'
+     )
+    exit(1)
 
   if jxa_config.deps_comp_mode == 'script':
     lib_ext = 'scpt'
   elif jxa_config.deps_comp_mode == 'bundle':
     lib_ext = 'scptd'
   else:
-    terminate_with_error(
-        f'Error, unknown library compilation mode "{jxa_config.deps_comp_mode}"'
-    )
+    log_print_error
+    (f'Error, unknown library compilation mode "{jxa_config.deps_comp_mode}"')
+    exit(1)
 
   for lib in libs:
     lib.output_path = p.join(lib_dest, f'{lib.output_path}.{lib_ext}')
@@ -202,7 +215,9 @@ def build(**kwargs):
     try:
       os.makedirs(output_dir)
     except:
-      terminate_with_error(f'Error, while creating output directory: {e}')
+      log_print_error
+      (f'Error, while creating output directory: {e}')
+      exit(1)
 
   ## Compile
   outputs: dict[str, str] = {}
@@ -223,13 +238,17 @@ def build(**kwargs):
     try:
       subprocess.run(command, check=True, text=True)
     except subprocess.CalledProcessError as e:
-      terminate_with_error(f'Error running osacompile: {e}')
+      log_print_error
+      (f'Error running osacompile: {e}')
+      exit(1)
 
   try:
     with open(p.join(project_dir, LOCATIONS_FILE), 'w') as f:
       f.write(json.dumps(outputs, indent=2))
   except Exception as e:
-    terminate_with_error(f'Error, while writing locations file: {e}')
+    log_print_error
+    (f'Error, while writing locations file: {e}')
+    exit(1)
 
   ## TODO: move this to a separate file
   ## Modify Info.plist and app resources
@@ -239,7 +258,9 @@ def build(**kwargs):
                 'r') as file:
         info_plist = file.read()
     except Exception as e:
-      terminate_with_error(f'Error, while reading Info.plist: {e}')
+      log_print_error
+      (f'Error, while reading Info.plist: {e}')
+      exit(1)
 
     default_bundle_executable = re.search(
         r'(<key>CFBundleExecutable</key>\s+<string>)(\w+?)(</string>)',
@@ -260,7 +281,9 @@ def build(**kwargs):
                 'w') as file:
         file.write(info_plist)
     except Exception as e:
-      terminate_with_error(f'Error, while writing Info.plist: {e}')
+      log_print_error
+      (f'Error, while writing Info.plist: {e}')
+      exit(1)
 
     ## Rename bundle executable accordingly
     try:
@@ -272,7 +295,9 @@ def build(**kwargs):
                    default_bundle_executable),
             p.join(main.output_path, 'Contents', 'MacOS', bundle_executable))
     except Exception as e:
-      terminate_with_error(f'Error, while renaming bundle executable: {e}')
+      log_print_error
+      (f'Error, while renaming bundle executable: {e}')
+      exit(1)
 
     ## Rename app resource files accordingly
     try:
@@ -287,7 +312,9 @@ def build(**kwargs):
           p.join(main.output_path, 'Contents', 'Resources',
                  f'{bundle_executable}.rsrc'))
     except Exception as e:
-      terminate_with_error(f'Error, while renaming app resource files: {e}')
+      log_print_error
+      (f'Error, while renaming app resource files: {e}')
+      exit(1)
 
     ## Copy icon to the app resources
     # TODO: make sure relative paths work
@@ -298,5 +325,6 @@ def build(**kwargs):
             p.join(main.output_path, 'Contents', 'Resources',
                    f'{bundle_executable}.icns'))
       except Exception as e:
-        terminate_with_error(
-            f'Error, while copying icon to the app resources: {e}')
+        log_print_error
+        (f'Error, while copying icon to the app resources: {e}')
+        exit(1)

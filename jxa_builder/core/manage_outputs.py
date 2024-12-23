@@ -5,7 +5,7 @@ import subprocess
 import json
 from typing import Literal
 from jxa_builder.core.constants import SYSTEM_TMP_DIR
-from jxa_builder.utils.printit import terminate_with_error
+from jxa_builder.utils.printit import log_print_error
 
 # TODO: include traceback using incl_traceback=True
 
@@ -27,7 +27,8 @@ def manage_outputs(action: Literal['install', 'uninstall'],
       with open(locations_file, 'r') as f:
         locations: dict[str, str] = json.load(f)
     except Exception as e:
-      terminate_with_error(f'Cannot read {locations_file}: {e}')
+      log_print_error(f'Cannot read {locations_file}: {e}')
+      exit(1)
     for target, install_path in locations.items():
       if not output_dir:
         output_dir = p.dirname(target)
@@ -71,20 +72,23 @@ def manage_outputs(action: Literal['install', 'uninstall'],
         try:
           shutil.copytree(output_dir, system_tmp, dirs_exist_ok=True)
         except Exception as e:
-          terminate_with_error(
+          log_print_error(
               f'Cannot copy output directory to temporary directory (system): {e}'
           )
+          exit(1)
       try:
         subprocess.run(['osascript', '-l', 'JavaScript', '-e', jxa_command],
                        text=True)
       except subprocess.CalledProcessError as e:
-        terminate_with_error(f'Cannot run {action} action: {e}')
+        log_print_error(f'Cannot run {action} action: {e}')
+        exit(1)
       if action == 'install':
         if p.exists(system_tmp):
           try:
             shutil.rmtree(system_tmp)
           except Exception as e:
-            terminate_with_error(
-                f'Cannot delete temporary directory (system): {e}')
+            log_print_error(f'Cannot delete temporary directory (system): {e}')
+            exit(1)
   else:
-    terminate_with_error(f'Locations file: {locations_file} not found')
+    log_print_error(f'Locations file: {locations_file} not found')
+    exit(1)

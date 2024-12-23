@@ -7,7 +7,7 @@ from jxa_builder.core.constants import PACKAGE_JSON_FILE, JXA_JSON_FILE
 from jxa_builder.utils.remove_empty_values import remove_empty_values
 from jxa_builder.utils.logger import logger
 from jxa_builder.utils.recase import recase
-from jxa_builder.utils.printit import terminate_with_error
+from jxa_builder.utils.printit import log_print_error
 from jxa_builder.core.models import JxaProjectConfig, SEM_VER, LoadedPropInfo
 from jxa_builder.core.constants import IS_RICH
 
@@ -25,11 +25,13 @@ def get_json_obj(file_path: str) -> Dict[str, any]:
       json_dict = json.load(f)
     except json.JSONDecodeError as e:
       error_msg = f'Invalid json syntax in "{file_path}" at line {e.lineno}, column {e.colno}: {e.msg}'
-      terminate_with_error(error_msg)
+      log_print_error(error_msg)
+      exit(1)
     if not isinstance(json_dict, dict):
-      terminate_with_error(
-          f'Invalid type in "{file_path}": Expected an object, got {type(json_dict)}'
-      )
+      log_print_error
+      (f'Invalid type in "{file_path}": Expected an object, got {type(json_dict)}'
+       )
+      exit(1)
   return json_dict
 
 
@@ -67,8 +69,9 @@ def get_project_config(
   package_json_jxa = package_json.get('jxa', {})
   package_json_jxa = to_snake_dict(package_json_jxa)
   if not isinstance(package_json_jxa, dict):
-    terminate_with_error(
-        f'Invalid type in "{package_json_file}": The "jxa" must be an object.')
+    log_print_error
+    (f'Invalid type in "{package_json_file}": The "jxa" must be an object.')
+    exit(1)
   if package_json_jxa:
     properties.update({
         k:
@@ -119,6 +122,5 @@ def get_project_config(
       else:
         error_msg += f'''\n  {error["msg"]} (input value: '{error["input"]}')'''
 
-    terminate_with_error(error_msg)
-    # logger.fatal(error_msg)
-    # exit(1)
+    log_print_error(error_msg)
+    exit(1)

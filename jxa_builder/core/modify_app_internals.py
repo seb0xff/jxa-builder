@@ -21,6 +21,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
       info_plist = file.read()
   except Exception as e:
     terminate_with_error(f'Error, while reading Info.plist: {e}')
+    exit(1)
 
   default_bundle_executable = re.search(
       r'(<key>CFBundleExecutable</key>\s+<string>)(\w+?)(</string>)',
@@ -41,6 +42,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
       f.write(info_plist)
   except Exception as e:
     terminate_with_error(f'Error, while writing Info.plist: {e}')
+    exit(1)
 
   ## Rename bundle executable accordingly
   try:
@@ -49,6 +51,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
                 p.join(macos_path, bundle_executable))
   except Exception as e:
     terminate_with_error(f'Error, while renaming bundle executable: {e}')
+    exit(1)
 
   ## Rename app resource files accordingly
   try:
@@ -58,6 +61,7 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
               p.join(resources_path, f'{bundle_executable}.rsrc'))
   except Exception as e:
     terminate_with_error(f'Error, while renaming app resource files: {e}')
+    exit(1)
 
   ## Copy icon to the app resources
   # TODO: make sure relative paths work
@@ -70,3 +74,4 @@ def modify_app_internals(app_path: str, icon_path: Optional[str] = None):
     except Exception as e:
       terminate_with_error(
           f'Error, while copying icon to the app resources: {e}')
+      exit(1)

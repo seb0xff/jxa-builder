@@ -1,7 +1,7 @@
 from typing import List, Set, Iterable
 from os import path as p
 import re
-from jxa_builder.utils.printit import terminate_with_error
+from jxa_builder.utils.printit import log_print_error
 
 
 def get_dependency_paths(
@@ -11,7 +11,8 @@ def get_dependency_paths(
     with open(source_path, 'r') as f:
       source = f.read()
   except Exception as e:
-    terminate_with_error(f'Error, while reading source "{source_path}": {e}')
+    log_print_error(f'Error, while reading source "{source_path}": {e}')
+    exit(1)
   source = re.sub(r'//.*\n', '', source)
   source = re.sub(r'/\*[\s\S]*?\*/', '', source)
   libraries_rel: Set[str] = set(
@@ -39,9 +40,10 @@ def get_dependency_paths(
       else:
         if deps_search_abs == p.abspath(
             deps_search_paths[-1]):  # last iteration
-          terminate_with_error(
+          log_print_error(
               f'Could not find library "{lib_rel}": "{lib_abs}"\nMake sure it\'s actually installed if using a package manager (e.g. "npm install")'
           )
+          exit(1)
 
   return libraries_abs
 

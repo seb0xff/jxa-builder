@@ -1,7 +1,7 @@
 from typing import Literal
 import subprocess
 from os import path as p
-from jxa_builder.utils.printit import terminate_with_error
+from jxa_builder.utils.printit import log_print_error
 
 
 def compile(input_path: str,
@@ -27,7 +27,8 @@ def compile(input_path: str,
   try:
     subprocess.run(command, check=True, text=True)
   except subprocess.CalledProcessError as e:
-    terminate_with_error(f'Error running osacompile: {e}')
+    log_print_error(f'Error running osacompile: {e}')
+    exit(1)
 
 
 if __name__ == '__main__':
