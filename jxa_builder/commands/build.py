@@ -60,7 +60,6 @@ def build(**kwargs):
       version=jxa_config.version)
 
   dependency_modules = get_dependency_modules(project_dir)
-  logger.debug(f'Gathered dependencies: {dependency_modules}')
 
   preprocessed_dir = p.join(project_dir, PREPROCESSED_DIR)
   output_dir = p.join(project_dir, OUTPUT_DIR)
@@ -194,4 +193,5 @@ def build(**kwargs):
       exit(1)
 
   if jxa_config.comp_mode == 'app':
+    logger.info('Modifying app internals...')
     modify_app_internals(comp_units[0].output_path, jxa_config.app_icon)
