@@ -7,6 +7,7 @@ from typing import Literal, List
 from jxa_builder.core.constants import SYSTEM_TMP_DIR_ABS, APPS_DIR_ABS
 from jxa_builder.core.models import CompilationUnit
 from jxa_builder.utils.printit import log_print_error
+from jxa_builder.utils.logger import logger
 
 #TODO: Make it completely independent to the build command
 # Instead of the locations file, gather deps in folders (the preprocessed folder)
@@ -68,7 +69,7 @@ def manage_outputs(action: Literal['install', 'uninstall'],
           perm_problem = True
 
         if perm_problem:
-          shell_command += f'[ -e "{dest_file}" ] && rm -r "{dest_file}";'
+          shell_command += f'[ -e "{dest_file}" ] && rm -r "{dest_file}" || true;'  ## true to make exit code 0
           if action == 'install':
             target = p.join(system_tmp, p.basename(target))
             shell_command += f'mkdir -p "{dest_file_dir}" && mv "{target}" "{dest_file_dir}";'
@@ -83,6 +84,7 @@ def manage_outputs(action: Literal['install', 'uninstall'],
         withPrompt: "Administration privileges are needed to perform the task.\\nPlease enter your password:",
       }});
       '''
+      logger.debug(f'JXA command: {jxa_command}')
       if action == 'install':
         try:
           shutil.copytree(output_dir, system_tmp, dirs_exist_ok=True)
