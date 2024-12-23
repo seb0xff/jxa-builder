@@ -110,11 +110,13 @@ def get_project_config(
     errors = e.errors()
     error_msg = f'\n{len(errors)} validation error(s)'
     for error in e.errors():
-      prop = error['loc'][0]
-      prop_info = properties[prop]
-      error_msg += (f'\n[bold cyan]{prop_info.original_name}[/bold cyan]'
-                    if IS_RICH else f'\n{prop_info.original_name}') + (
-                        f" in {prop_info.origin}" if prop_info.origin else "")
+      prop = error.get('loc', [])
+      if prop:
+        prop_info = properties[prop[0]]
+        error_msg += (f'\n[bold cyan]{prop_info.original_name}[/bold cyan]'
+                      if IS_RICH else f'\n{prop_info.original_name}') + (
+                          f" in {prop_info.origin}"
+                          if prop_info.origin else "")
       if error['type'] == 'extra_forbidden':
         error_msg += f'''\n  Unrecognized property (input value: '{error["input"]}')'''
       elif error['type'] == 'string_pattern_mismatch' and error['ctx'][

@@ -162,11 +162,6 @@ def build(**kwargs):
 
     ## Installation paths
     if jxa_config.deps_install_mode == 'app':
-      if jxa_config.comp_mode != 'app':
-        log_print_error
-        ('Error, library installation mode is set to "app", but the main file is not compiled to an app'
-         )
-        exit(1)
       lib_dest = p.join(comp_units[0].installation_path, APP_LIBS_DIR)
     elif jxa_config.deps_install_mode == 'user':
       lib_dest = USER_LIBS_DIR_ABS

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from os import path as p
 from typing import Optional, Literal, Union
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Self
 from pydantic import (BaseModel, ConfigDict, StringConstraints, ValidationInfo,
-                      Field, field_validator)
+                      Field, field_validator, model_validator)
 
 
 @dataclass
@@ -32,7 +32,6 @@ class LoadedPropInfo:
 
 
 #TODO: add bundle support
-#TODO: change to model validator
 class JxaProjectConfig(BaseModel):
   model_config: ConfigDict = ConfigDict(
       str_strip_whitespace=True,
@@ -53,27 +52,48 @@ class JxaProjectConfig(BaseModel):
 
   @field_validator('project_dir')
   @classmethod
-  def project_dir_must_exist(cls, value: str) -> str:
-    abs_path = p.abspath(value)
-    if not p.exists(abs_path):
-      raise ValueError(f'Path "{abs_path}" does not exist')
-    if not p.isdir(abs_path):
-      raise ValueError(f'Path "{abs_path}" is not a directory')
-    return abs_path
+  def resolve_project_dir(cls, value: str) -> str:
+    project_dir = p.abspath(value)
+    if not p.exists(project_dir):
+      raise ValueError(f'Path "{project_dir}" does not exist')
+    if not p.isdir(project_dir):
+      raise ValueError(f'Path "{project_dir}" is not a directory')
 
-  @field_validator('main', 'app_icon')
+    return project_dir
+
+  @field_validator('main')
   @classmethod
-  def path_must_exist(cls, value: Union[str, None],
-                      info: ValidationInfo) -> Optional[str]:
-    if value:
-      if not p.isabs(value):
-        package_dir = info.data['project_dir']
-        abs_path = p.join(package_dir, value)
-      else:
-        abs_path = value
+  def resolve_main_path(cls, value: str, info: ValidationInfo) -> str:
+    project_dir = info.data['project_dir']
+    main = p.join(project_dir, value)
+    if not p.exists(main):
+      raise ValueError(f'Path "{main}" does not exist')
+    if not p.isfile(main):
+      raise ValueError(f'Path "{main}" is not a file')
 
-      if not p.exists(abs_path):
-        raise ValueError(f'Path "{abs_path}" does not exist')
-      if not p.isfile(abs_path):
-        raise ValueError(f'Path "{abs_path}" is not a file')
-      return abs_path
+    return main
+
+  @field_validator('app_icon')
+  @classmethod
+  def resolve_icon_path(cls, value: Optional[str],
+                        info: ValidationInfo) -> Optional[str]:
+    project_dir = info.data['project_dir']
+    if value:
+      app_icon = p.join(project_dir, value)
+      if not p.exists(app_icon):
+        raise ValueError(f'Path "{app_icon}" does not exist')
+      if not p.isfile(app_icon):
+        raise ValueError(f'Path "{app_icon}" is not a file')
+    elif p.exists(p.join(project_dir, 'icon.icns')):
+      app_icon = p.join(project_dir, 'icon.icns')
+    else:
+      app_icon = None
+
+    return app_icon
+
+  @model_validator(mode='after')
+  def validate_model(self) -> Self:
+    if self.deps_install_mode == 'app' and not self.comp_mode == 'app':
+      raise ValueError(
+          'Dependencies installation mode "app" is only available for compilation mode "app"'
+      )
